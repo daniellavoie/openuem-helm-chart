@@ -1,0 +1,87 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "openuem.fullname" . }}-console
+  labels:
+    {{- include "openuem.labels" . | nindent 4 }}
+    app.kubernetes.io/component: console
+spec:
+  replicas: {{ .Values.console.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "openuem.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: console
+  template:
+    metadata:
+      labels:
+        {{- include "openuem.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: console
+    spec:
+      {{- with .Values.global.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "openuem.serviceAccountName" . }}
+      initContainers:
+        - name: wait-for-certs
+          image: busybox:1.36
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              echo "Waiting for certificates..."
+              while [ ! -f /certs-source/certificates/console/console.cer ]; do
+                sleep 5
+              done
+              echo "Certificates ready, copying to target location..."
+              mkdir -p /certs-target
+              cp /certs-source/certificates/console/console.cer /certs-target/console.cer
+              cp /certs-source/certificates/console/console.key /certs-target/console.key
+              cp /certs-source/certificates/console/sftp.key /certs-target/sftp.key
+              cp /certs-source/certificates/ca/ca.cer /certs-target/ca.cer
+              echo "Certificates copied successfully"
+          volumeMounts:
+            - name: openuem-certs
+              mountPath: /certs-source
+              readOnly: true
+            - name: certs-local
+              mountPath: /certs-target
+      containers:
+        - name: console
+          image: "{{ include "openuem.imageRegistry" . }}{{ .Values.console.image.repository }}:{{ .Values.console.image.tag }}"
+          imagePullPolicy: {{ .Values.console.image.pullPolicy }}
+          args: ["start"]
+          envFrom:
+            - configMapRef:
+                name: {{ include "openuem.fullname" . }}-config
+          env:
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "openuem.databaseSecretName" . }}
+                  key: DATABASE_URL
+            - name: JWT_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "openuem.consoleSecretName" . }}
+                  key: JWT_KEY
+          ports:
+            - name: console
+              containerPort: {{ .Values.console.port }}
+              protocol: TCP
+            - name: auth
+              containerPort: {{ .Values.console.authPort }}
+              protocol: TCP
+          {{- with .Values.console.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          volumeMounts:
+            - name: certs-local
+              mountPath: /bin/certificates
+              readOnly: true
+      volumes:
+        - name: openuem-certs
+          persistentVolumeClaim:
+            claimName: {{ include "openuem.certsPvcName" . }}
+        - name: certs-local
+          emptyDir: {}

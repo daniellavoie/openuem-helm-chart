@@ -1,0 +1,21 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "openuem.fullname" . }}-console
+  labels:
+    {{- include "openuem.labels" . | nindent 4 }}
+    app.kubernetes.io/component: console
+spec:
+  type: {{ .Values.console.service.type }}
+  ports:
+    - port: {{ .Values.console.service.port }}
+      targetPort: console
+      protocol: TCP
+      name: console
+    - port: {{ .Values.console.service.authPort }}
+      targetPort: auth
+      protocol: TCP
+      name: auth
+  selector:
+    {{- include "openuem.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: console

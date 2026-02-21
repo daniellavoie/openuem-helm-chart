@@ -1,0 +1,84 @@
+{{- if .Values.workers.certManager.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "openuem.fullname" . }}-cert-manager-worker
+  labels:
+    {{- include "openuem.labels" . | nindent 4 }}
+    app.kubernetes.io/component: cert-manager-worker
+spec:
+  replicas: {{ .Values.workers.certManager.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "openuem.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: cert-manager-worker
+  template:
+    metadata:
+      labels:
+        {{- include "openuem.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: cert-manager-worker
+    spec:
+      {{- with .Values.global.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "openuem.serviceAccountName" . }}
+      initContainers:
+        - name: wait-for-certs
+          image: busybox:1.36
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              echo "Waiting for certificates..."
+              while [ ! -f /certs-source/certificates/cert-manager-worker/worker.cer ]; do
+                sleep 5
+              done
+              echo "Certificates ready, copying to target location..."
+              mkdir -p /certs-target
+              cp /certs-source/certificates/cert-manager-worker/worker.cer /certs-target/worker.cer
+              cp /certs-source/certificates/cert-manager-worker/worker.key /certs-target/worker.key
+              cp /certs-source/certificates/ca/ca.cer /certs-target/ca.cer
+              cp /certs-source/certificates/ca/ca.key /certs-target/ca.key
+              echo "Certificates copied successfully"
+          volumeMounts:
+            - name: openuem-certs
+              mountPath: /certs-source
+              readOnly: true
+            - name: certs-local
+              mountPath: /certs-target
+      containers:
+        - name: cert-manager-worker
+          image: "{{ include "openuem.imageRegistry" . }}{{ .Values.workers.image.repository }}:{{ .Values.workers.image.tag }}"
+          imagePullPolicy: {{ .Values.workers.image.pullPolicy }}
+          args: ["cert-manager", "start"]
+          env:
+            - name: OCSP
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ include "openuem.fullname" . }}-config
+                  key: OCSP
+            - name: NATS_SERVERS
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ include "openuem.fullname" . }}-config
+                  key: NATS_SERVERS
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "openuem.databaseSecretName" . }}
+                  key: DATABASE_URL
+          {{- with .Values.workers.certManager.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          volumeMounts:
+            - name: certs-local
+              mountPath: /tmp/certificates
+              readOnly: true
+      volumes:
+        - name: openuem-certs
+          persistentVolumeClaim:
+            claimName: {{ include "openuem.certsPvcName" . }}
+        - name: certs-local
+          emptyDir: {}
+{{- end }}

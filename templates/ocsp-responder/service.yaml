@@ -1,0 +1,20 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "openuem.fullname" . }}-ocsp-responder
+  labels:
+    {{- include "openuem.labels" . | nindent 4 }}
+    app.kubernetes.io/component: ocsp-responder
+spec:
+  type: {{ .Values.ocspResponder.service.type }}
+  ports:
+    - port: {{ .Values.ocspResponder.service.port }}
+      targetPort: ocsp
+      protocol: TCP
+      name: ocsp
+      {{- if and (eq .Values.ocspResponder.service.type "NodePort") .Values.ocspResponder.service.nodePort }}
+      nodePort: {{ .Values.ocspResponder.service.nodePort }}
+      {{- end }}
+  selector:
+    {{- include "openuem.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: ocsp-responder

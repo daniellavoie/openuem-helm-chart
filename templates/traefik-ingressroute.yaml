@@ -1,0 +1,38 @@
+{{- if .Values.traefik.ingressRoute.enabled }}
+{{- if not .Values.traefik.ingressRoute.routes }}
+{{- fail "traefik.ingressRoute.routes is required when traefik.ingressRoute.enabled=true" }}
+{{- end }}
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: {{ include "openuem.fullname" . }}-console
+  labels:
+    {{- include "openuem.labels" . | nindent 4 }}
+    app.kubernetes.io/component: console
+  {{- with .Values.traefik.ingressRoute.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  {{- with .Values.traefik.ingressRoute.entryPoints }}
+  entryPoints:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  routes:
+    {{- range .Values.traefik.ingressRoute.routes }}
+    - match: Host(`{{ .host }}`)
+      kind: Rule
+      services:
+        - name: {{ include "openuem.fullname" $ }}-console
+          port: {{ .port }}
+    {{- end }}
+  {{- if or .Values.traefik.ingressRoute.tls.certResolver .Values.traefik.ingressRoute.tls.secretName }}
+  tls:
+    {{- with .Values.traefik.ingressRoute.tls.certResolver }}
+    certResolver: {{ . }}
+    {{- end }}
+    {{- with .Values.traefik.ingressRoute.tls.secretName }}
+    secretName: {{ . }}
+    {{- end }}
+  {{- end }}
+{{- end }}

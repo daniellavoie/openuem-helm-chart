@@ -1,0 +1,222 @@
+# -- Global settings
+global:
+  imageRegistry: ""
+  imagePullSecrets: []
+
+# -- Organization details used for certificate generation
+organization:
+  name: "OpenUEM"
+  province: "Valladolid"
+  locality: "Valladolid"
+  address: ""
+  country: "ES"
+  domain: "openuem.example"
+
+# -- Certificate initialization Job
+certInit:
+  image:
+    repository: openuem/openuem-cert-manager
+    tag: "latest"
+    pullPolicy: Always
+  # -- Reverse proxy server hostname (optional)
+  reverseProxyServer: ""
+  backoffLimit: 3
+  ttlSecondsAfterFinished: 300
+  resources: {}
+  persistence:
+    storageClass: ""
+    size: 256Mi
+    accessModes:
+      - ReadWriteOnce
+    # -- Fixed PVC name (required for NATS subchart static reference)
+    claimName: openuem-certs
+
+# -- Inline PostgreSQL deployment
+postgresql:
+  enabled: true
+  image:
+    repository: postgres
+    tag: "17"
+    pullPolicy: IfNotPresent
+  auth:
+    username: openuem
+    password: openuem
+    database: openuem
+    # -- Use an existing Secret for POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_DB
+    existingSecret: ""
+  port: 5432
+  persistence:
+    enabled: true
+    storageClass: ""
+    size: 10Gi
+    accessModes:
+      - ReadWriteOnce
+  resources: {}
+
+# -- External database settings (used when postgresql.enabled=false)
+externalDatabase:
+  host: ""
+  port: 5432
+  username: ""
+  password: ""
+  database: ""
+  # -- Full connection URL override (takes precedence)
+  url: ""
+  # -- Use an existing Secret for DATABASE_URL
+  existingSecret: ""
+
+# -- OCSP Responder
+ocspResponder:
+  image:
+    repository: openuem/openuem-ocsp-responder
+    tag: "latest"
+    pullPolicy: Always
+  port: 8000
+  # -- Override hostname (default: ocsp.<domain>)
+  hostname: ""
+  replicaCount: 1
+  service:
+    type: ClusterIP
+    port: 8000
+    nodePort: null
+  resources: {}
+
+# -- NATS subchart configuration
+nats:
+  enabled: true
+  config:
+    jetstream:
+      enabled: true
+      fileStore:
+        pvc:
+          size: 5Gi
+    nats:
+      port: 4433
+      tls:
+        enabled: true
+        merge:
+          cert_file: /etc/openuem-certs/certificates/nats/nats.cer
+          key_file: /etc/openuem-certs/certificates/nats/nats.key
+          ca_file: /etc/openuem-certs/certificates/ca/ca.cer
+  podTemplate:
+    merge:
+      spec:
+        initContainers:
+          - name: wait-for-certs
+            image: busybox:1.36
+            command: ["/bin/sh", "-c"]
+            args:
+              - |
+                while [ ! -f /etc/openuem-certs/certificates/ca/ca.cer ]; do
+                  echo "Waiting for certificates..."
+                  sleep 5
+                done
+            volumeMounts:
+              - name: openuem-certs
+                mountPath: /etc/openuem-certs
+                readOnly: true
+        volumes:
+          - name: openuem-certs
+            persistentVolumeClaim:
+              claimName: openuem-certs
+              readOnly: true
+  container:
+    merge:
+      volumeMounts:
+        - name: openuem-certs
+          mountPath: /etc/openuem-certs
+          readOnly: true
+
+# -- NATS connection settings
+natsConfig:
+  port: 4433
+  # -- Override hostname (default: nats.<domain>)
+  hostname: ""
+
+# -- Worker deployments
+workers:
+  image:
+    repository: openuem/openuem-worker
+    tag: "latest"
+    pullPolicy: Always
+  notification:
+    enabled: true
+    replicaCount: 1
+    resources: {}
+  certManager:
+    enabled: true
+    replicaCount: 1
+    resources: {}
+  agents:
+    enabled: true
+    replicaCount: 1
+    resources: {}
+
+# -- Console web UI
+console:
+  image:
+    repository: openuem/openuem-console
+    tag: "latest"
+    pullPolicy: Always
+  port: 1323
+  authPort: 1324
+  # -- Override hostname (default: console.<domain>)
+  hostname: ""
+  jwtKey: "averylongsecret"
+  # -- Use an existing Secret for JWT_KEY
+  existingSecret: ""
+  reverseProxyAuthPort: ""
+  reverseProxyServer: ""
+  reEnableCertificatesAuth: ""
+  reEnablePasswdAuth: ""
+  resetOpenuemUser: ""
+  replicaCount: 1
+  service:
+    type: ClusterIP
+    port: 1323
+    authPort: 1324
+  resources: {}
+
+# -- Ingress for console (disabled by default)
+ingress:
+  enabled: false
+  className: ""
+  annotations: {}
+  # -- Host rules (required when ingress.enabled=true)
+  hosts: []
+  #  - host: console.example.com
+  #    paths:
+  #      - path: /
+  #        pathType: Prefix
+  #        port: 1323
+  #  - host: auth.example.com
+  #    paths:
+  #      - path: /
+  #        pathType: Prefix
+  #        port: 1324
+  tls: []
+
+# -- Traefik IngressRoute for console (disabled by default)
+traefik:
+  ingressRoute:
+    enabled: false
+    annotations: {}
+    entryPoints:
+      - websecure
+    # -- Route definitions (required when traefik.ingressRoute.enabled=true)
+    routes: []
+    #  - host: console.example.com
+    #    port: 1323
+    #  - host: auth.example.com
+    #    port: 1324
+    tls:
+      # -- Traefik cert resolver name (e.g. "letsencrypt")
+      certResolver: ""
+      # -- Existing TLS Secret name (mutually exclusive with certResolver)
+      secretName: ""
+
+# -- ServiceAccount
+serviceAccount:
+  create: true
+  name: ""
+  annotations: {}

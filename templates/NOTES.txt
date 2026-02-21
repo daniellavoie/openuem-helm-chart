@@ -1,0 +1,30 @@
+OpenUEM has been deployed!
+
+1. Wait for the certificate init job to complete:
+
+   kubectl wait --for=condition=complete job/{{ include "openuem.fullname" . }}-cert-init --timeout=300s
+
+2. Verify all pods are running:
+
+   kubectl get pods -l "app.kubernetes.io/instance={{ .Release.Name }}"
+
+3. Access the console:
+{{- if .Values.ingress.enabled }}
+{{- range .Values.ingress.hosts }}
+   https://{{ .host }}
+{{- end }}
+{{- else if eq .Values.console.service.type "NodePort" }}
+   export NODE_PORT=$(kubectl get svc {{ include "openuem.fullname" . }}-console -o jsonpath='{.spec.ports[0].nodePort}')
+   export NODE_IP=$(kubectl get nodes -o jsonpath='{.items[0].status.addresses[0].address}')
+   echo "Console: https://$NODE_IP:$NODE_PORT"
+{{- else if eq .Values.console.service.type "LoadBalancer" }}
+   export SERVICE_IP=$(kubectl get svc {{ include "openuem.fullname" . }}-console -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
+   echo "Console: https://$SERVICE_IP:{{ .Values.console.service.port }}"
+{{- else }}
+   kubectl port-forward svc/{{ include "openuem.fullname" . }}-console {{ .Values.console.port }}:{{ .Values.console.service.port }}
+   echo "Console: https://localhost:{{ .Values.console.port }}"
+{{- end }}
+
+4. Check certificate job logs if pods are stuck in init:
+
+   kubectl logs job/{{ include "openuem.fullname" . }}-cert-init

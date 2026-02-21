@@ -1,0 +1,17 @@
+apiVersion: v2
+name: openuem
+description: A Helm chart for OpenUEM - Open Unified Endpoint Management
+type: application
+version: 0.1.0
+appVersion: "latest"
+home: https://github.com/open-uem
+sources:
+  - https://github.com/open-uem/openuem-docker
+maintainers:
+  - name: OpenUEM
+    url: https://github.com/open-uem
+dependencies:
+  - name: nats
+    version: "2.12.4"
+    repository: "https://nats-io.github.io/k8s/helm/charts/"
+    condition: nats.enabled
