@@ -62,11 +62,7 @@ spec:
                 configMapKeyRef:
                   name: {{ include "openuem.fullname" . }}-config
                   key: NATS_SERVERS
-            - name: DATABASE_URL
-              valueFrom:
-                secretKeyRef:
-                  name: {{ include "openuem.databaseSecretName" . }}
-                  key: DATABASE_URL
+            {{- include "openuem.databaseEnv" . | nindent 12 }}
           {{- with .Values.workers.certManager.resources }}
           resources:
             {{- toYaml . | nindent 12 }}

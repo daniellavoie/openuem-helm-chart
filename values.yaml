@@ -60,10 +60,17 @@ externalDatabase:
   username: ""
   password: ""
   database: ""
-  # -- Full connection URL override (takes precedence)
+  # -- Full connection URL override (takes precedence when existingSecret is unset)
   url: ""
-  # -- Use an existing Secret for DATABASE_URL
+  # -- Existing Secret holding database credentials. Compatible with
+  # CloudNativePG-managed secrets (basic-auth type, with `username` and
+  # `password` keys). The chart reads username/password from the secret and
+  # composes DATABASE_URL at container start using `host`, `port`, and
+  # `database` from above.
   existingSecret: ""
+  # -- Key names within existingSecret (defaults match CNPG's basic-auth layout)
+  existingSecretUsernameKey: username
+  existingSecretPasswordKey: password
 
 # -- OCSP Responder
 ocspResponder:

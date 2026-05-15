@@ -107,8 +107,10 @@ Used when `postgresql.enabled=false`.
 | `externalDatabase.username` | Database user | `""` |
 | `externalDatabase.password` | Database password | `""` |
 | `externalDatabase.database` | Database name | `""` |
-| `externalDatabase.url` | Full connection URL (takes precedence) | `""` |
-| `externalDatabase.existingSecret` | Existing Secret with a `DATABASE_URL` key | `""` |
+| `externalDatabase.url` | Full connection URL (used when `existingSecret` is unset) | `""` |
+| `externalDatabase.existingSecret` | Existing Secret with `username`/`password` keys (CNPG-compatible) | `""` |
+| `externalDatabase.existingSecretUsernameKey` | Username key inside `existingSecret` | `username` |
+| `externalDatabase.existingSecretPasswordKey` | Password key inside `existingSecret` | `password` |
 
 ### OCSP Responder
 
@@ -227,16 +229,24 @@ The referenced Secret must contain these keys:
 - `POSTGRES_PASSWORD`
 - `POSTGRES_DB`
 
-### Database URL
+### Database credentials (CNPG-compatible)
 
 ```yaml
 externalDatabase:
-  existingSecret: "my-db-secret"
+  host: my-cluster-rw
+  port: 5432
+  database: app
+  existingSecret: my-cluster-app
 ```
 
 The referenced Secret must contain:
 
-- `DATABASE_URL` — a full PostgreSQL connection string (e.g. `postgres://user:pass@host:5432/dbname`)
+- `username`
+- `password`
+
+Defaults match secrets produced by [CloudNativePG](https://cloudnative-pg.io/) (basic-auth type with `username`/`password` keys). Override the key names with `externalDatabase.existingSecretUsernameKey` and `externalDatabase.existingSecretPasswordKey` if your secret uses different names.
+
+The chart pulls username and password from the secret via `secretKeyRef` and composes `DATABASE_URL` at container start using `host`, `port`, and `database` from values. Passwords containing URL-reserved characters (`@`, `:`, `/`, `?`, `#`, `%`) must be URL-encoded inside the secret.
 
 ### JWT key
 
@@ -274,12 +284,14 @@ helm install openuem oci://ghcr.io/daniellavoie/helm-charts/openuem --version 0.
   --set externalDatabase.url="postgres://user:pass@db.example.com:5432/openuem"
 ```
 
-### External database with existing Secret
+### External database with existing Secret (CNPG)
 
 ```bash
 helm install openuem oci://ghcr.io/daniellavoie/helm-charts/openuem --version 0.0.1-alpha.1 \
   --set postgresql.enabled=false \
-  --set externalDatabase.existingSecret=my-db-secret
+  --set externalDatabase.host=my-cluster-rw \
+  --set externalDatabase.database=app \
+  --set externalDatabase.existingSecret=my-cluster-app
 ```
 
 ### All secrets externalized

@@ -54,11 +54,7 @@ spec:
             - configMapRef:
                 name: {{ include "openuem.fullname" . }}-config
           env:
-            - name: DATABASE_URL
-              valueFrom:
-                secretKeyRef:
-                  name: {{ include "openuem.databaseSecretName" . }}
-                  key: DATABASE_URL
+            {{- include "openuem.databaseEnv" . | nindent 12 }}
             - name: JWT_KEY
               valueFrom:
                 secretKeyRef:

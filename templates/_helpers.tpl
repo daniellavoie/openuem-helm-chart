@@ -184,14 +184,42 @@ Secret name for PostgreSQL credentials (POSTGRES_USER, POSTGRES_PASSWORD, POSTGR
 {{- end }}
 
 {{/*
-Secret name for DATABASE_URL.
+Chart-managed Secret name (carries DATABASE_URL when not provided externally).
 */}}
 {{- define "openuem.databaseSecretName" -}}
-{{- if .Values.externalDatabase.existingSecret }}
-{{- .Values.externalDatabase.existingSecret }}
-{{- else }}
 {{- printf "%s-secret" (include "openuem.fullname" .) }}
 {{- end }}
+
+{{/*
+DATABASE_URL env var(s).
+
+When externalDatabase.existingSecret is set (e.g. a CloudNativePG-managed
+basic-auth secret), pull username/password from the secret via secretKeyRef
+and compose DATABASE_URL using Kubernetes $(VAR) env interpolation —
+host, port, and database come from values. Otherwise reference DATABASE_URL
+on the chart-managed Secret.
+*/}}
+{{- define "openuem.databaseEnv" -}}
+{{- if and (not .Values.postgresql.enabled) .Values.externalDatabase.existingSecret -}}
+- name: DATABASE_USERNAME
+  valueFrom:
+    secretKeyRef:
+      name: {{ .Values.externalDatabase.existingSecret }}
+      key: {{ .Values.externalDatabase.existingSecretUsernameKey | default "username" }}
+- name: DATABASE_PASSWORD
+  valueFrom:
+    secretKeyRef:
+      name: {{ .Values.externalDatabase.existingSecret }}
+      key: {{ .Values.externalDatabase.existingSecretPasswordKey | default "password" }}
+- name: DATABASE_URL
+  value: "postgres://$(DATABASE_USERNAME):$(DATABASE_PASSWORD)@{{ .Values.externalDatabase.host }}:{{ int .Values.externalDatabase.port }}/{{ .Values.externalDatabase.database }}"
+{{- else -}}
+- name: DATABASE_URL
+  valueFrom:
+    secretKeyRef:
+      name: {{ include "openuem.databaseSecretName" . }}
+      key: DATABASE_URL
+{{- end -}}
 {{- end }}
 
 {{/*
