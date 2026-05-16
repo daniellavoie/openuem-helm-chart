@@ -6,6 +6,16 @@
 {{- fail "traefik.ingressRoute.auth.host is required when traefik.ingressRoute.enabled=true" }}
 {{- end }}
 apiVersion: {{ .Values.traefik.ingressRoute.apiVersion }}
+kind: ServersTransport
+metadata:
+  name: {{ include "openuem.fullname" . }}-console-insecure
+  labels:
+    {{- include "openuem.labels" . | nindent 4 }}
+    app.kubernetes.io/component: console
+spec:
+  insecureSkipVerify: true
+---
+apiVersion: {{ .Values.traefik.ingressRoute.apiVersion }}
 kind: IngressRoute
 metadata:
   name: {{ include "openuem.fullname" . }}-console
@@ -27,6 +37,8 @@ spec:
       services:
         - name: {{ include "openuem.fullname" . }}-console
           port: {{ .Values.console.service.port }}
+          scheme: https
+          serversTransport: {{ include "openuem.fullname" . }}-console-insecure
   {{- if or .Values.traefik.ingressRoute.console.tls.certResolver .Values.traefik.ingressRoute.console.tls.secretName }}
   tls:
     {{- with .Values.traefik.ingressRoute.console.tls.certResolver }}
@@ -59,6 +71,8 @@ spec:
       services:
         - name: {{ include "openuem.fullname" . }}-console
           port: {{ .Values.console.service.authPort }}
+          scheme: https
+          serversTransport: {{ include "openuem.fullname" . }}-console-insecure
   {{- if or .Values.traefik.ingressRoute.auth.tls.certResolver .Values.traefik.ingressRoute.auth.tls.secretName }}
   tls:
     {{- with .Values.traefik.ingressRoute.auth.tls.certResolver }}
