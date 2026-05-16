@@ -194,12 +194,16 @@ For clusters using [Traefik](https://doc.traefik.io/traefik/) as the ingress con
 
 | Parameter | Description | Default |
 |-----------|-------------|---------|
-| `traefik.ingressRoute.enabled` | Create a Traefik IngressRoute | `false` |
-| `traefik.ingressRoute.annotations` | Annotations | `{}` |
+| `traefik.ingressRoute.enabled` | Create Traefik IngressRoutes | `false` |
+| `traefik.ingressRoute.apiVersion` | IngressRoute CRD API version (e.g. `traefik.containo.us/v1alpha1` for legacy installs) | `traefik.io/v1alpha1` |
+| `traefik.ingressRoute.annotations` | Annotations applied to both IngressRoutes | `{}` |
 | `traefik.ingressRoute.entryPoints` | Traefik entrypoints to listen on | `[websecure]` |
-| `traefik.ingressRoute.routes` | Route definitions (host + port) **(required** when enabled**)** | `[]` |
-| `traefik.ingressRoute.tls.certResolver` | Traefik cert resolver (e.g. `"letsencrypt"`) | `""` |
-| `traefik.ingressRoute.tls.secretName` | Existing TLS Secret (mutually exclusive with certResolver) | `""` |
+| `traefik.ingressRoute.console.host` | Host name for the console UI, routed to `console.service.port` **(required** when enabled**)** | `""` |
+| `traefik.ingressRoute.console.tls.certResolver` | Cert resolver for the console route (e.g. `"letsencrypt"`) | `""` |
+| `traefik.ingressRoute.console.tls.secretName` | Existing TLS Secret for the console route (mutually exclusive with `certResolver`) | `""` |
+| `traefik.ingressRoute.auth.host` | Host name for the auth endpoint, routed to `console.service.authPort` **(required** when enabled**)** | `""` |
+| `traefik.ingressRoute.auth.tls.certResolver` | Cert resolver for the auth route (e.g. `"letsencrypt"`) | `""` |
+| `traefik.ingressRoute.auth.tls.secretName` | Existing TLS Secret for the auth route (mutually exclusive with `certResolver`) | `""` |
 
 ### ServiceAccount
 
@@ -311,13 +315,14 @@ traefik:
     enabled: true
     entryPoints:
       - websecure
-    routes:
-      - host: console.example.com
-        port: 1323
-      - host: auth.example.com
-        port: 1324
-    tls:
-      certResolver: letsencrypt
+    console:
+      host: console.example.com
+      tls:
+        secretName: console-tls
+    auth:
+      host: auth.example.com
+      tls:
+        secretName: auth-tls
 ```
 
 ### With ingress

@@ -207,20 +207,29 @@ ingress:
 traefik:
   ingressRoute:
     enabled: false
+    # -- API version of the IngressRoute CRD (e.g. traefik.io/v1alpha1, traefik.containo.us/v1alpha1)
+    apiVersion: traefik.io/v1alpha1
     annotations: {}
     entryPoints:
       - websecure
-    # -- Route definitions (required when traefik.ingressRoute.enabled=true)
-    routes: []
-    #  - host: console.example.com
-    #    port: 1323
-    #  - host: auth.example.com
-    #    port: 1324
-    tls:
-      # -- Traefik cert resolver name (e.g. "letsencrypt")
-      certResolver: ""
-      # -- Existing TLS Secret name (mutually exclusive with certResolver)
-      secretName: ""
+    # -- Console UI route (forwarded to console.service.port)
+    console:
+      # -- Host name (required when traefik.ingressRoute.enabled=true)
+      host: ""
+      tls:
+        # -- Traefik cert resolver name (e.g. "letsencrypt")
+        certResolver: ""
+        # -- Existing TLS Secret name (mutually exclusive with certResolver)
+        secretName: ""
+    # -- Auth endpoint route (forwarded to console.service.authPort)
+    auth:
+      # -- Host name (required when traefik.ingressRoute.enabled=true)
+      host: ""
+      tls:
+        # -- Traefik cert resolver name (e.g. "letsencrypt")
+        certResolver: ""
+        # -- Existing TLS Secret name (mutually exclusive with certResolver)
+        secretName: ""
 
 # -- ServiceAccount
 serviceAccount:

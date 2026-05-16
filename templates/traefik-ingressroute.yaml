@@ -1,8 +1,11 @@
 {{- if .Values.traefik.ingressRoute.enabled }}
-{{- if not .Values.traefik.ingressRoute.routes }}
-{{- fail "traefik.ingressRoute.routes is required when traefik.ingressRoute.enabled=true" }}
+{{- if not .Values.traefik.ingressRoute.console.host }}
+{{- fail "traefik.ingressRoute.console.host is required when traefik.ingressRoute.enabled=true" }}
 {{- end }}
-apiVersion: traefik.io/v1alpha1
+{{- if not .Values.traefik.ingressRoute.auth.host }}
+{{- fail "traefik.ingressRoute.auth.host is required when traefik.ingressRoute.enabled=true" }}
+{{- end }}
+apiVersion: {{ .Values.traefik.ingressRoute.apiVersion }}
 kind: IngressRoute
 metadata:
   name: {{ include "openuem.fullname" . }}-console
@@ -19,19 +22,49 @@ spec:
     {{- toYaml . | nindent 4 }}
   {{- end }}
   routes:
-    {{- range .Values.traefik.ingressRoute.routes }}
-    - match: Host(`{{ .host }}`)
+    - match: Host(`{{ .Values.traefik.ingressRoute.console.host }}`)
       kind: Rule
       services:
-        - name: {{ include "openuem.fullname" $ }}-console
-          port: {{ .port }}
-    {{- end }}
-  {{- if or .Values.traefik.ingressRoute.tls.certResolver .Values.traefik.ingressRoute.tls.secretName }}
+        - name: {{ include "openuem.fullname" . }}-console
+          port: {{ .Values.console.service.port }}
+  {{- if or .Values.traefik.ingressRoute.console.tls.certResolver .Values.traefik.ingressRoute.console.tls.secretName }}
   tls:
-    {{- with .Values.traefik.ingressRoute.tls.certResolver }}
+    {{- with .Values.traefik.ingressRoute.console.tls.certResolver }}
     certResolver: {{ . }}
     {{- end }}
-    {{- with .Values.traefik.ingressRoute.tls.secretName }}
+    {{- with .Values.traefik.ingressRoute.console.tls.secretName }}
+    secretName: {{ . }}
+    {{- end }}
+  {{- end }}
+---
+apiVersion: {{ .Values.traefik.ingressRoute.apiVersion }}
+kind: IngressRoute
+metadata:
+  name: {{ include "openuem.fullname" . }}-auth
+  labels:
+    {{- include "openuem.labels" . | nindent 4 }}
+    app.kubernetes.io/component: console
+  {{- with .Values.traefik.ingressRoute.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  {{- with .Values.traefik.ingressRoute.entryPoints }}
+  entryPoints:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  routes:
+    - match: Host(`{{ .Values.traefik.ingressRoute.auth.host }}`)
+      kind: Rule
+      services:
+        - name: {{ include "openuem.fullname" . }}-console
+          port: {{ .Values.console.service.authPort }}
+  {{- if or .Values.traefik.ingressRoute.auth.tls.certResolver .Values.traefik.ingressRoute.auth.tls.secretName }}
+  tls:
+    {{- with .Values.traefik.ingressRoute.auth.tls.certResolver }}
+    certResolver: {{ . }}
+    {{- end }}
+    {{- with .Values.traefik.ingressRoute.auth.tls.secretName }}
     secretName: {{ . }}
     {{- end }}
   {{- end }}
