@@ -28,8 +28,12 @@ spec:
           command: ["/bin/sh", "-c"]
           args:
             - |
+              set -e
               echo "Waiting for certificates..."
-              while [ ! -f /certs-source/certificates/console/console.cer ]; do
+              while [ ! -f /certs-source/certificates/console/console.cer ] \
+                 || [ ! -f /certs-source/certificates/console/console.key ] \
+                 || [ ! -f /certs-source/certificates/console/sftp.key ] \
+                 || [ ! -f /certs-source/certificates/ca/ca.cer ]; do
                 sleep 5
               done
               echo "Certificates ready, copying to target location..."
