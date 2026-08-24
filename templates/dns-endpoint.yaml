@@ -1,0 +1,44 @@
+{{- if .Values.externalDns.enabled }}
+{{- $hosts := .Values.externalDns.hosts }}
+{{- if not $hosts }}
+{{- $derived := list }}
+{{- if .Values.traefik.ingressRoute.enabled }}
+{{- with .Values.traefik.ingressRoute.console.host }}
+{{- $derived = append $derived . }}
+{{- end }}
+{{- with .Values.traefik.ingressRoute.auth.host }}
+{{- $derived = append $derived . }}
+{{- end }}
+{{- end }}
+{{- if .Values.ingress.enabled }}
+{{- range .Values.ingress.hosts }}
+{{- with .host }}
+{{- $derived = append $derived . }}
+{{- end }}
+{{- end }}
+{{- end }}
+{{- $hosts = $derived }}
+{{- end }}
+{{- $hosts = $hosts | compact | uniq }}
+{{- if not $hosts }}
+{{- fail "externalDns.enabled is true but no hostnames were found - set externalDns.hosts, or enable ingress / traefik.ingressRoute with hosts" }}
+{{- end }}
+apiVersion: externaldns.k8s.io/v1alpha1
+kind: DNSEndpoint
+metadata:
+  name: {{ include "openuem.fullname" . }}
+  labels:
+    {{- include "openuem.labels" . | nindent 4 }}
+spec:
+  endpoints:
+  {{- range $hosts }}
+    - dnsName: {{ . }}
+      recordType: {{ $.Values.externalDns.recordType }}
+      recordTTL: {{ $.Values.externalDns.recordTTL }}
+      targets:
+        - {{ required "externalDns.target is required when externalDns.enabled is true" $.Values.externalDns.target }}
+      providerSpecific:
+        - name: external-dns.alpha.kubernetes.io/cloudflare-proxied
+          value: {{ $.Values.externalDns.cloudflareProxied | toString | quote }}
+  {{- end }}
+{{- end }}

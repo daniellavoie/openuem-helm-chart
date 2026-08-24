@@ -144,6 +144,45 @@ PostgreSQL service name.
 {{- end }}
 
 {{/*
+CloudNativePG cluster name.
+*/}}
+{{- define "openuem.cnpgClusterName" -}}
+{{- if .Values.cnpg.name }}
+{{- .Values.cnpg.name }}
+{{- else }}
+{{- printf "%s-pg" (include "openuem.fullname" .) | trunc 63 | trimSuffix "-" }}
+{{- end }}
+{{- end }}
+
+{{/*
+CloudNativePG read-write Service name (created by the operator).
+*/}}
+{{- define "openuem.cnpgServiceName" -}}
+{{- printf "%s-rw" (include "openuem.cnpgClusterName" .) }}
+{{- end }}
+
+{{/*
+Secret holding the CloudNativePG owner credentials (basic-auth: username/password).
+Defaults to the operator-generated `<cluster>-app` Secret.
+*/}}
+{{- define "openuem.cnpgSecretName" -}}
+{{- if .Values.cnpg.existingSecret }}
+{{- .Values.cnpg.existingSecret }}
+{{- else }}
+{{- printf "%s-app" (include "openuem.cnpgClusterName" .) }}
+{{- end }}
+{{- end }}
+
+{{/*
+Guard against conflicting database sources.
+*/}}
+{{- define "openuem.validateDatabase" -}}
+{{- if and .Values.cnpg.enabled .Values.postgresql.enabled }}
+{{- fail "cnpg.enabled and postgresql.enabled are mutually exclusive - set postgresql.enabled=false when using the CloudNativePG cluster" }}
+{{- end }}
+{{- end }}
+
+{{/*
 wait-for-certs initContainer (reusable across all deployments).
 */}}
 {{- define "openuem.initWaitForCerts" -}}
@@ -193,6 +232,9 @@ Chart-managed Secret name (carries DATABASE_URL when not provided externally).
 {{/*
 DATABASE_URL env var(s).
 
+When cnpg.enabled is set, credentials come from the CloudNativePG cluster's
+owner Secret and the URL points at the cluster's `-rw` Service.
+
 When externalDatabase.existingSecret is set (e.g. a CloudNativePG-managed
 basic-auth secret), pull username/password from the secret via secretKeyRef
 and compose DATABASE_URL using Kubernetes $(VAR) env interpolation —
@@ -200,7 +242,21 @@ host, port, and database come from values. Otherwise reference DATABASE_URL
 on the chart-managed Secret.
 */}}
 {{- define "openuem.databaseEnv" -}}
-{{- if and (not .Values.postgresql.enabled) .Values.externalDatabase.existingSecret -}}
+{{- include "openuem.validateDatabase" . -}}
+{{- if .Values.cnpg.enabled -}}
+- name: DATABASE_USERNAME
+  valueFrom:
+    secretKeyRef:
+      name: {{ include "openuem.cnpgSecretName" . }}
+      key: username
+- name: DATABASE_PASSWORD
+  valueFrom:
+    secretKeyRef:
+      name: {{ include "openuem.cnpgSecretName" . }}
+      key: password
+- name: DATABASE_URL
+  value: "postgres://$(DATABASE_USERNAME):$(DATABASE_PASSWORD)@{{ include "openuem.cnpgServiceName" . }}:5432/{{ .Values.cnpg.database }}"
+{{- else if and (not .Values.postgresql.enabled) .Values.externalDatabase.existingSecret -}}
 - name: DATABASE_USERNAME
   valueFrom:
     secretKeyRef:

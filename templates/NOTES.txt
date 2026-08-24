@@ -4,6 +4,13 @@ OpenUEM has been deployed!
 
    kubectl wait --for=condition=complete job/{{ include "openuem.fullname" . }}-cert-init --timeout=300s
 
+{{- if .Values.cnpg.enabled }}
+
+   The job waits for the CloudNativePG cluster first - check its health with:
+
+   kubectl get cluster {{ include "openuem.cnpgClusterName" . }}
+{{- end }}
+
 2. Verify all pods are running:
 
    kubectl get pods -l "app.kubernetes.io/instance={{ .Release.Name }}"

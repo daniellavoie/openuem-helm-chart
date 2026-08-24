@@ -44,6 +44,16 @@ spec:
                 echo "Waiting for PostgreSQL..."
                 sleep 3
               done
+        {{- else if .Values.cnpg.enabled }}
+        - name: wait-for-db
+          image: busybox:1.36
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              while ! nc -z {{ include "openuem.cnpgServiceName" . }} 5432; do
+                echo "Waiting for PostgreSQL..."
+                sleep 3
+              done
         {{- end }}
       containers:
         - name: cert-init

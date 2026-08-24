@@ -53,6 +53,51 @@ postgresql:
       - ReadWriteOnce
   resources: {}
 
+# -- Opt-in CloudNativePG cluster. Requires the CloudNativePG operator
+# (https://cloudnative-pg.io/) to be installed in the cluster. Mutually
+# exclusive with `postgresql.enabled` — set that to false when enabling this.
+# When enabled, the chart wires DATABASE_URL to the cluster's `-rw` Service
+# and reads the owner credentials from the CNPG-generated `-app` Secret.
+cnpg:
+  enabled: false
+  # -- Cluster name (default: <release-fullname>-pg)
+  name: ""
+  instances: 1
+  # -- CloudNativePG PostgreSQL image
+  imageName: ghcr.io/cloudnative-pg/postgresql:17
+  # -- Database and owner created by the initdb bootstrap
+  database: openuem
+  owner: openuem
+  # -- Existing Secret holding the owner credentials (basic-auth type, with
+  # `username`/`password` keys). When empty, CloudNativePG generates
+  # `<cluster>-app` and the chart reads it from there.
+  existingSecret: ""
+  # -- Grant access to the `postgres` superuser via a generated Secret
+  enableSuperuserAccess: false
+  # -- Rolling update strategy for the primary instance
+  primaryUpdateStrategy: unsupervised
+  storage:
+    size: 10Gi
+    storageClass: ""
+  # -- Dedicated volume for write-ahead logs
+  walStorage:
+    enabled: false
+    size: 2Gi
+    storageClass: ""
+  # -- PostgreSQL server parameters (spec.postgresql.parameters)
+  parameters: {}
+  monitoring:
+    enablePodMonitor: false
+  resources: {}
+  # -- CloudNativePG affinity settings (spec.affinity)
+  affinity: {}
+  # -- Backup configuration passed through to spec.backup (e.g. barmanObjectStore)
+  backup: {}
+  # -- Extra fields merged into spec (escape hatch for options not exposed above)
+  extraSpec: {}
+  annotations: {}
+  labels: {}
+
 # -- External database settings (used when postgresql.enabled=false)
 externalDatabase:
   host: ""
@@ -230,6 +275,23 @@ traefik:
         certResolver: ""
         # -- Existing TLS Secret name (mutually exclusive with certResolver)
         secretName: ""
+
+# -- Opt-in ExternalDNS records (DNSEndpoint CRD) for the chart's hostnames.
+# Requires ExternalDNS to be installed in the cluster with the `crd` source
+# enabled (https://kubernetes-sigs.github.io/external-dns/).
+externalDns:
+  enabled: false
+  # -- IP or hostname the records resolve to. Required when enabled.
+  target: ""
+  # -- A for IP targets, CNAME for hostname targets
+  recordType: A
+  recordTTL: 300
+  # -- Cloudflare-only, ignored by other providers. Whether the record is
+  # proxied (orange-cloud).
+  cloudflareProxied: false
+  # -- Hostnames to publish. When empty, they are derived from the Traefik
+  # IngressRoute hosts (console + auth) and `ingress.hosts`.
+  hosts: []
 
 # -- ServiceAccount
 serviceAccount:
