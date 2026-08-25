@@ -5,21 +5,30 @@
 {{- if not (has .Values.traefik.ingressRouteTCP.nats.host .Values.certInit.natsExtraDnsNames) }}
 {{- fail "traefik.ingressRouteTCP.nats.host must also appear in certInit.natsExtraDnsNames, or agents will fail TLS hostname verification against the NATS certificate" }}
 {{- end }}
+{{- if not .Values.nats.config.websocket.enabled }}
+{{- fail "traefik.ingressRouteTCP.enabled requires nats.config.websocket.enabled: HostSNI cannot match the raw NATS protocol, because the server sends a plaintext INFO line before any TLS handshake and Traefik never sees a ClientHello. Route the WebSocket listener instead." }}
+{{- end }}
 # Publishes NATS on the shared TLS entrypoint, for agents that cannot reach the
 # cluster over a private network.
 #
-# TLS passthrough, not termination. Traefik matches on the SNI in the
-# ClientHello and proxies raw TCP without decrypting, so NATS keeps presenting
-# its own OpenUEM-CA certificate. That matters twice over: agents pin the
-# OpenUEM CA with nats.RootCAs(), which rejects any publicly-trusted
-# certificate, and they present a client certificate that has to survive to the
-# server for the NATS `verify` option to enforce anything.
+# Points at the WebSocket listener, NOT the raw NATS port, and that is not a
+# preference. NATS is not TLS-first: the server sends a plaintext `INFO` line
+# and the client upgrades afterwards, so the client's first bytes are never a
+# ClientHello and Traefik has no SNI to match on. The server can be told to
+# handshake first, but the client must opt in with nats.TLSHandshakeFirst(),
+# and OpenUEM's ConnectWithNATS does not. WebSocket has no such problem — wss://
+# is TLS from the first byte, so the ClientHello carries the SNI.
 #
-# Consequence: this route offers no authentication of its own. Anything that
-# completes the TLS handshake reaches NATS. Enable client certificate
-# verification on the NATS side before turning this on:
+# TLS passthrough, not termination. Agents pin the OpenUEM CA with
+# nats.RootCAs(), which rejects any publicly-trusted certificate, and they
+# present a client certificate that has to survive to the server for NATS
+# `verify` to enforce anything. Terminating here would break both.
 #
-#   nats.config.nats.tls.merge.verify: true
+# The route authenticates nothing by itself. Anything completing the TLS
+# handshake reaches NATS unless the WebSocket listener verifies client
+# certificates:
+#
+#   nats.config.websocket.tls.merge.verify: true
 apiVersion: {{ .Values.traefik.ingressRouteTCP.apiVersion }}
 kind: IngressRouteTCP
 metadata:
@@ -37,13 +46,12 @@ spec:
     {{- toYaml . | nindent 4 }}
   {{- end }}
   routes:
-    # HostSNI only matches when the client sends SNI. The NATS Go client derives
-    # it from the host in the connection URL, so agents must be pointed at this
-    # hostname rather than an IP.
+    # HostSNI only matches when the client sends SNI, so agents must be pointed
+    # at this hostname rather than an IP.
     - match: HostSNI(`{{ .Values.traefik.ingressRouteTCP.nats.host }}`)
       services:
         - name: {{ .Values.traefik.ingressRouteTCP.nats.service | default (printf "%s-nats" .Release.Name) }}
-          port: {{ .Values.natsConfig.port }}
+          port: {{ .Values.traefik.ingressRouteTCP.nats.port | default .Values.nats.config.websocket.port }}
   tls:
     passthrough: true
 {{- end }}

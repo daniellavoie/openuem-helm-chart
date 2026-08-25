@@ -310,8 +310,13 @@ traefik:
   # does not terminate TLS, NATS presents its own OpenUEM-CA certificate, and
   # the agent's client certificate reaches the server intact.
   #
+  # Routes the WebSocket listener, so it requires nats.config.websocket.enabled.
+  # The raw NATS port cannot be SNI-routed: the server sends a plaintext INFO
+  # line before any TLS handshake, so Traefik never sees a ClientHello to read
+  # the SNI from. wss:// is TLS from the first byte.
+  #
   # This route authenticates nothing by itself. Set
-  # `nats.config.nats.tls.merge.verify: true` before enabling it, or NATS
+  # `nats.config.websocket.tls.merge.verify: true` before enabling it, or NATS
   # accepts any client that completes a TLS handshake.
   ingressRouteTCP:
     enabled: false
@@ -328,6 +333,8 @@ traefik:
       host: ""
       # -- Backend Service. Defaults to the NATS subchart's <release>-nats.
       service: ""
+      # -- Backend Service port. Defaults to nats.config.websocket.port.
+      port: ""
 
 # -- Opt-in ExternalDNS records (DNSEndpoint CRD) for the chart's hostnames.
 # Requires ExternalDNS to be installed in the cluster with the `crd` source
