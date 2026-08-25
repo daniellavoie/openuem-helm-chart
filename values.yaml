@@ -150,6 +150,17 @@ nats:
           cert_file: /etc/openuem-certs/certificates/nats/nats.cer
           key_file: /etc/openuem-certs/certificates/nats/nats.key
           ca_file: /etc/openuem-certs/certificates/ca/ca.cer
+  # The NATS subchart applies `merge` with Helm's mergeOverwrite, which REPLACES
+  # lists rather than appending to them. Anything that adds to an existing list
+  # — volumes, volumeMounts — must go through `patch` (RFC 6902, applied after
+  # the merge) or it silently erases the subchart's own entries. Injecting the
+  # cert PVC via `merge` wiped the `config` and `pid` volumes and the JetStream
+  # mount, which left the reloader mounting a `pid` volume that no longer
+  # existed and made the API server reject every openuem-nats-0 pod.
+  #
+  # `initContainers` stays on `merge`: the subchart defines none, so there is no
+  # list to clobber, and `add /spec/initContainers/-` would fail against an
+  # array that does not exist yet.
   podTemplate:
     merge:
       spec:
@@ -167,15 +178,21 @@ nats:
               - name: openuem-certs
                 mountPath: /etc/openuem-certs
                 readOnly: true
-        volumes:
-          - name: openuem-certs
-            persistentVolumeClaim:
-              claimName: openuem-certs
-              readOnly: true
+    patch:
+      - op: add
+        path: /spec/volumes/-
+        value:
+          name: openuem-certs
+          persistentVolumeClaim:
+            claimName: openuem-certs
+            readOnly: true
   container:
-    merge:
-      volumeMounts:
-        - name: openuem-certs
+    # Rooted at the container object, so no /spec prefix — unlike podTemplate.
+    patch:
+      - op: add
+        path: /volumeMounts/-
+        value:
+          name: openuem-certs
           mountPath: /etc/openuem-certs
           readOnly: true
 
