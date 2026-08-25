@@ -1,0 +1,49 @@
+{{- if .Values.traefik.ingressRouteTCP.enabled }}
+{{- if not .Values.traefik.ingressRouteTCP.nats.host }}
+{{- fail "traefik.ingressRouteTCP.nats.host is required when traefik.ingressRouteTCP.enabled=true" }}
+{{- end }}
+{{- if not (has .Values.traefik.ingressRouteTCP.nats.host .Values.certInit.natsExtraDnsNames) }}
+{{- fail "traefik.ingressRouteTCP.nats.host must also appear in certInit.natsExtraDnsNames, or agents will fail TLS hostname verification against the NATS certificate" }}
+{{- end }}
+# Publishes NATS on the shared TLS entrypoint, for agents that cannot reach the
+# cluster over a private network.
+#
+# TLS passthrough, not termination. Traefik matches on the SNI in the
+# ClientHello and proxies raw TCP without decrypting, so NATS keeps presenting
+# its own OpenUEM-CA certificate. That matters twice over: agents pin the
+# OpenUEM CA with nats.RootCAs(), which rejects any publicly-trusted
+# certificate, and they present a client certificate that has to survive to the
+# server for the NATS `verify` option to enforce anything.
+#
+# Consequence: this route offers no authentication of its own. Anything that
+# completes the TLS handshake reaches NATS. Enable client certificate
+# verification on the NATS side before turning this on:
+#
+#   nats.config.nats.tls.merge.verify: true
+apiVersion: {{ .Values.traefik.ingressRouteTCP.apiVersion }}
+kind: IngressRouteTCP
+metadata:
+  name: {{ include "openuem.fullname" . }}-nats
+  labels:
+    {{- include "openuem.labels" . | nindent 4 }}
+    app.kubernetes.io/component: nats
+  {{- with .Values.traefik.ingressRouteTCP.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  {{- with .Values.traefik.ingressRouteTCP.entryPoints }}
+  entryPoints:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  routes:
+    # HostSNI only matches when the client sends SNI. The NATS Go client derives
+    # it from the host in the connection URL, so agents must be pointed at this
+    # hostname rather than an IP.
+    - match: HostSNI(`{{ .Values.traefik.ingressRouteTCP.nats.host }}`)
+      services:
+        - name: {{ .Values.traefik.ingressRouteTCP.nats.service | default (printf "%s-nats" .Release.Name) }}
+          port: {{ .Values.natsConfig.port }}
+  tls:
+    passthrough: true
+{{- end }}

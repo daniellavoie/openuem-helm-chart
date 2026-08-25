@@ -10,6 +10,11 @@
 {{- $derived = append $derived . }}
 {{- end }}
 {{- end }}
+{{- if .Values.traefik.ingressRouteTCP.enabled }}
+{{- with .Values.traefik.ingressRouteTCP.nats.host }}
+{{- $derived = append $derived . }}
+{{- end }}
+{{- end }}
 {{- if .Values.ingress.enabled }}
 {{- range .Values.ingress.hosts }}
 {{- with .host }}

@@ -20,6 +20,18 @@ certInit:
     pullPolicy: Always
   # -- Reverse proxy server hostname (optional)
   reverseProxyServer: ""
+  # -- Extra SANs for the NATS server certificate, on top of the internal
+  # hostname and the image's built-in nats-server/localhost.
+  #
+  # Agents verify the NATS hostname against this certificate, so any name they
+  # dial has to be here — publishing NATS through an ingress is not enough on
+  # its own. Kept separate from natsConfig.hostname deliberately: that value
+  # also builds NATS_SERVERS, so overriding it would send in-cluster clients out
+  # to the public name.
+  #
+  # The cert-init image only mints a certificate when one is absent, so adding a
+  # name here does not rotate an existing certificate. See the README.
+  natsExtraDnsNames: []
   backoffLimit: 3
   ttlSecondsAfterFinished: 300
   resources: {}
@@ -292,6 +304,30 @@ traefik:
         certResolver: ""
         # -- Existing TLS Secret name (mutually exclusive with certResolver)
         secretName: ""
+  # -- Opt-in SNI-routed TCP passthrough for NATS, so agents outside the
+  # cluster's private network can reach the message broker over the same TLS
+  # entrypoint as the HTTP routes. No certificate is configured here: Traefik
+  # does not terminate TLS, NATS presents its own OpenUEM-CA certificate, and
+  # the agent's client certificate reaches the server intact.
+  #
+  # This route authenticates nothing by itself. Set
+  # `nats.config.nats.tls.merge.verify: true` before enabling it, or NATS
+  # accepts any client that completes a TLS handshake.
+  ingressRouteTCP:
+    enabled: false
+    # -- API version of the IngressRouteTCP CRD (e.g. traefik.io/v1alpha1,
+    # traefik.containo.us/v1alpha1)
+    apiVersion: traefik.io/v1alpha1
+    annotations: {}
+    entryPoints:
+      - websecure
+    nats:
+      # -- Host name agents connect to (required when enabled). Must also be
+      # listed in certInit.natsExtraDnsNames so it is a SAN on the NATS
+      # certificate; the chart refuses to render otherwise.
+      host: ""
+      # -- Backend Service. Defaults to the NATS subchart's <release>-nats.
+      service: ""
 
 # -- Opt-in ExternalDNS records (DNSEndpoint CRD) for the chart's hostnames.
 # Requires ExternalDNS to be installed in the cluster with the `crd` source

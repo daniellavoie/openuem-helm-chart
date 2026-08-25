@@ -102,8 +102,12 @@ spec:
                 configMapKeyRef:
                   name: {{ include "openuem.fullname" . }}-config
                   key: SERVER_NAME
+            # Interpolated by the image's create-certs.sh into
+            # `--dns-names "$NATS_SERVER,nats-server,localhost"`, and the tool
+            # splits that on commas — so extra names passed here become
+            # additional SANs on the NATS certificate.
             - name: NATS_SERVER
-              value: {{ include "openuem.natsHostname" . | quote }}
+              value: {{ concat (list (include "openuem.natsHostname" .)) .Values.certInit.natsExtraDnsNames | join "," | quote }}
             - name: NATS_PORT
               value: {{ .Values.natsConfig.port | quote }}
             {{- if .Values.certInit.reverseProxyServer }}
