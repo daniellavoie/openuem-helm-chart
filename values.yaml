@@ -213,15 +213,6 @@ natsConfig:
   port: 4433
   # -- Override hostname (default: nats.<domain>)
   hostname: ""
-  # -- NATS servers as advertised to enrolled agents, in host:port format
-  # (no scheme). Agents run outside the cluster and cannot resolve the
-  # in-cluster service name, so set this to a reachable address.
-  # Defaults to the in-cluster value, which only works for in-cluster agents.
-  advertisedServers: ""
-  # -- NATS websocket port advertised to enrolled agents. Agents fall back to
-  # websockets when they cannot open a direct connection. Leave empty to
-  # disable the fallback.
-  websocketPort: ""
 
 # -- Worker deployments
 workers:
@@ -260,6 +251,15 @@ console:
   reEnableCertificatesAuth: ""
   reEnablePasswdAuth: ""
   resetOpenuemUser: ""
+  # -- NATS servers as advertised to enrolled agents, in host:port format
+  # (no scheme). Agents run outside the cluster and cannot resolve the
+  # in-cluster service name, so set this to a reachable address.
+  # Defaults to the in-cluster value, which only works for in-cluster agents.
+  agentNatsServers: ""
+  # -- NATS websocket port advertised to enrolled agents. Agents fall back to
+  # websockets when they cannot open a direct connection. Leave empty to
+  # disable the fallback.
+  agentNatsWebsocketPort: ""
   replicaCount: 1
   service:
     type: ClusterIP

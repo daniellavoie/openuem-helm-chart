@@ -185,8 +185,6 @@ The chart includes the [official NATS Helm chart](https://github.com/nats-io/k8s
 | `nats.enabled` | Deploy NATS subchart | `true` |
 | `natsConfig.port` | NATS client port | `4433` |
 | `natsConfig.hostname` | Override NATS hostname (default: `<release>-nats`) | `""` |
-| `natsConfig.advertisedServers` | NATS endpoint written into enrollment configs, as `host:port` with no scheme. Agents run outside the cluster, so the in-cluster default is usually not reachable | `""` |
-| `natsConfig.websocketPort` | NATS websocket port advertised to enrolled agents, used when a direct connection fails. Empty disables the fallback | `""` |
 
 See the [NATS chart documentation](https://github.com/nats-io/k8s/tree/main/helm/charts/nats) for the full set of subchart values under the `nats` key.
 
@@ -223,6 +221,8 @@ All workers share the same image and can be individually enabled/disabled.
 | `console.existingSecret` | Existing Secret with a `JWT_KEY` key | `""` |
 | `console.reverseProxyAuthPort` | Reverse proxy auth port | `""` |
 | `console.reverseProxyServer` | Reverse proxy server | `""` |
+| `console.agentNatsServers` | NATS endpoint written into enrollment configs, as `host:port` with no scheme. Agents run outside the cluster, so the in-cluster default is usually not reachable | `""` |
+| `console.agentNatsWebsocketPort` | NATS websocket port advertised to enrolled agents, used when a direct connection fails. Empty disables the fallback | `""` |
 | `console.replicaCount` | Replica count | `1` |
 | `console.service.type` | Service type | `ClusterIP` |
 | `console.service.port` | Service port | `1323` |

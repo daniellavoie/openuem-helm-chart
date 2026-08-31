@@ -100,7 +100,7 @@ Agents live outside the cluster, so this falls back to the in-cluster value
 only when no reachable address has been configured.
 */}}
 {{- define "openuem.agentNatsServers" -}}
-{{- .Values.natsConfig.advertisedServers | default (include "openuem.natsServers" .) }}
+{{- .Values.console.agentNatsServers | default (include "openuem.natsServers" .) }}
 {{- end }}
 
 {{/*
