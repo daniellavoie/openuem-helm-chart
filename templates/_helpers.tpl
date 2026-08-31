@@ -95,6 +95,15 @@ NATS_SERVERS connection string.
 {{- end }}
 
 {{/*
+AGENT_NATS_SERVERS — the NATS endpoint written into enrollment configs.
+Agents live outside the cluster, so this falls back to the in-cluster value
+only when no reachable address has been configured.
+*/}}
+{{- define "openuem.agentNatsServers" -}}
+{{- .Values.natsConfig.advertisedServers | default (include "openuem.natsServers" .) }}
+{{- end }}
+
+{{/*
 OCSP URL.
 */}}
 {{- define "openuem.ocspUrl" -}}

@@ -33,6 +33,9 @@ spec:
               while [ ! -f /certs-source/certificates/console/console.cer ] \
                  || [ ! -f /certs-source/certificates/console/console.key ] \
                  || [ ! -f /certs-source/certificates/console/sftp.key ] \
+                 || [ ! -f /certs-source/certificates/console/sftp.cer ] \
+                 || [ ! -f /certs-source/certificates/agents/agent.cer ] \
+                 || [ ! -f /certs-source/certificates/agents/agent.key ] \
                  || [ ! -f /certs-source/certificates/ca/ca.cer ]; do
                 sleep 5
               done
@@ -42,6 +45,10 @@ spec:
               cp /certs-source/certificates/console/console.key /certs-target/console.key
               cp /certs-source/certificates/console/sftp.key /certs-target/sftp.key
               cp /certs-source/certificates/ca/ca.cer /certs-target/ca.cer
+              # Shipped to endpoints in the enrollment configuration archive
+              cp /certs-source/certificates/agents/agent.cer /certs-target/agent.cer
+              cp /certs-source/certificates/agents/agent.key /certs-target/agent.key
+              cp /certs-source/certificates/console/sftp.cer /certs-target/sftp.cer
               echo "Certificates copied successfully"
           volumeMounts:
             - name: openuem-certs

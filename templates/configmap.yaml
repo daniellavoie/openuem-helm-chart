@@ -14,6 +14,10 @@ data:
   OCSP: {{ include "openuem.ocspUrl" . | quote }}
   OCSP_PORT: {{ .Values.ocspResponder.port | quote }}
   NATS_SERVERS: {{ include "openuem.natsServers" . | quote }}
+  AGENT_NATS_SERVERS: {{ include "openuem.agentNatsServers" . | quote }}
+  {{- if .Values.natsConfig.websocketPort }}
+  AGENT_NATS_WEBSOCKET_PORT: {{ .Values.natsConfig.websocketPort | quote }}
+  {{- end }}
   CONSOLE_PORT: {{ .Values.console.port | quote }}
   AUTH_PORT: {{ .Values.console.authPort | quote }}
   SERVER_NAME: {{ include "openuem.consoleHostname" . | quote }}
